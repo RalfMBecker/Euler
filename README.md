@@ -1,0 +1,1 @@
+Solutions to Project Euler exercises in x86 32b assembly
