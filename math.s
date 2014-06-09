@@ -84,4 +84,74 @@ exit:
 	ret
 # end fibonacci
 
+# Sieve of Aristotathenes
+# Create list of prime numbers smaller than n/2
+#
+# Note: - no input error (range) check
+#       - n <= 200,000,000
+# Returns: pointer to array of ints of prime numbers
+#          (0 sentinel at end)
+#
+# Registers: %edx: n/2
+#            %ecx: counting variable (2 - n/2)
+#            %ebx: pointer into array of primes
+#                  (position next to be added)
+#            %eax: inner pointer to A. tmp array
+#                  (we enter %edx as a placeholder for "is multiple")
+	.section .bss
+	.lcomm tmp_Arr, 200000000
 
+	.comm prime_Arr, 100000000
+
+	.section .text
+	.globl sieve
+	.type sieve, @function
+sieve:
+	pushl %ebp
+	movl %esp, %ebp
+	movl 8(%ebp), %edx
+	
+	# create Aristotathenes tmp array
+loop_Tmp_:	
+	movl $2, %ecx
+	movl %ecx, tmp_Arr(, %ecx, 4)
+	addl $1, %ecx
+	cmp %ecx, %edx
+	jge loop_Tmp_
+
+	# initialize registers used in alogirithm
+	shr %edx
+	incl %edx       # n/2
+	movl $2, %ecx   # outer loop counting var
+	movl %ecx, %eax # inner loop counting var
+	xor %ebx, %ebx  # pointer to prime array
+loop_Outer_:
+	movl %ecx, prime_Arr(, %ebx, 4)  # record prime
+	incl %ebx
+loop_Inner_:
+	addl %ecx, %eax
+	movl %edx, tmp_Arr(, %eax, 4)
+	cmp %eax, %edx
+	jge loop_Inner_
+find_Next_:	# find minimum in A. tmp array
+	addl $1, %ecx
+	cmp %ecx, %edx
+	jl done_
+	cmp tmp_Arr(, %ecx, 4), %edx
+	je find_Next_
+
+	jmp loop_Outer_
+done_:
+	movl $0, prime_Arr(, %ebx, 4)       # sentinel
+	movl $prime_Arr, %eax
+
+	movl %ebp, %esp
+	popl %ebp
+	ret
+# end sieve
+
+
+
+
+
+	
