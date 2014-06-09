@@ -84,7 +84,7 @@ exit:
 	ret
 # end fibonacci
 
-# Sieve of Aristotathenes
+# Sieve of Eratosthenes
 # Create list of prime numbers smaller than n/2
 #
 # Note: - no input error (range) check
@@ -99,9 +99,9 @@ exit:
 #            %eax: inner pointer to A. tmp array
 #                  (we enter %edx as a placeholder for "is multiple")
 	.section .bss
-	.lcomm tmp_Arr, 200000000
+	.lcomm tmp_Arr, 800000000
 
-	.comm prime_Arr, 100000000
+	.comm prime_Arr, 400000000
 
 	.section .text
 	.globl sieve
@@ -111,9 +111,9 @@ sieve:
 	movl %esp, %ebp
 	movl 8(%ebp), %edx
 	
-	# create Aristotathenes tmp array
-loop_Tmp_:	
+	# create Eratosthenes tmp array
 	movl $2, %ecx
+loop_Tmp_:	
 	movl %ecx, tmp_Arr(, %ecx, 4)
 	addl $1, %ecx
 	cmp %ecx, %edx
@@ -140,6 +140,7 @@ find_Next_:	# find minimum in A. tmp array
 	cmp tmp_Arr(, %ecx, 4), %edx
 	je find_Next_
 
+	movl %ecx, %eax
 	jmp loop_Outer_
 done_:
 	movl $0, prime_Arr(, %ebx, 4)       # sentinel
