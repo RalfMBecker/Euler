@@ -20,7 +20,7 @@ defaultV:
 _start:
 	movl %esp, %ebp
 
-	# handle command line argument (default = 20)
+	# handle command line argument (default = 10)
 	cmpl $1, (%esp) # argc
 	je noargs
 	pushl 8(%ebp)   #argv[1] (pointer to)
