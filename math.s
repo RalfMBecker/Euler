@@ -110,18 +110,17 @@ sieve:
 	pushl %ebp
 	movl %esp, %ebp
 	movl 8(%ebp), %edx
+	shr %edx	# going to n/2 only
 	
 	# create Eratosthenes tmp array
-	movl $2, %ecx
+	movl $0, %ecx
 loop_Tmp_:	
 	movl %ecx, tmp_Arr(, %ecx, 4)
 	addl $1, %ecx
 	cmp %ecx, %edx
 	jge loop_Tmp_
 
-	# initialize registers used in alogirithm
-	shr %edx
-	incl %edx       # n/2
+	# initialize registers used in algorithm
 	movl $2, %ecx   # outer loop counting var
 	movl %ecx, %eax # inner loop counting var
 	xor %ebx, %ebx  # pointer to prime array
@@ -132,7 +131,7 @@ loop_Inner_:
 	addl %ecx, %eax
 	movl %edx, tmp_Arr(, %eax, 4)
 	cmp %eax, %edx
-	jge loop_Inner_
+	jg loop_Inner_
 find_Next_:	# find minimum in A. tmp array
 	addl $1, %ecx
 	cmp %ecx, %edx

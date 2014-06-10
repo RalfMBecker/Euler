@@ -80,4 +80,4 @@ incr:
 	movl $0, %ebx
 	movl $1, %eax
 	int $0x80
-# end euler 1
+# end euler 2

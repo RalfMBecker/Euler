@@ -32,19 +32,25 @@ argsdone:
 	pushl %edi     # not used in sieve
 	call sieve
 	addl $4, %esp
-
+test:
+	shr %edi	# only need to to n/2
 	pushl %edi
 	pushl $fmt_Str
 	call printf
-	addl $8, %esp
+	addl $4, %esp
+	popl %edi
 	
 	xor %ecx, %ecx
 loop_:
+	pushl %edi
+	pushl %ecx
 	pushl prime_Arr(, %ecx, 4)
 	pushl $fmt_Str2
 	call printf
 	addl $8, %esp
-
+	popl %ecx
+	popl %edi
+	
 	incl %ecx
 	cmp $0, prime_Arr(, %ecx, 4)
 	jne loop_
@@ -53,4 +59,4 @@ loop_:
 	movl $0, %ebx
 	movl $1, %eax
 	int $0x80
-# end euler 1
+# end testSieve.s
