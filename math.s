@@ -92,7 +92,8 @@ exit:
 # Returns: pointer to array of ints of prime numbers
 #          (0 sentinel at end)
 #
-# Registers: %edx: n
+# Registers: %esi: sentinel value (n+1)
+#            %edx: n
 #            %ecx: counting variable (2 - n)
 #            %ebx: pointer into array of primes
 #                  (position next to be added)
@@ -123,19 +124,21 @@ loop_Tmp_:
 	movl $2, %ecx   # outer loop counting var
 	movl %ecx, %eax # inner loop counting var
 	xor %ebx, %ebx  # pointer to prime array
+	movl %edx, %esi
+	incl %esi       # sentinel (or placeholder for 'not prime')
 loop_Outer_:
 	movl %ecx, prime_Arr(, %ebx, 4)  # record prime
 	incl %ebx
 loop_Inner_:
 	addl %ecx, %eax
-	movl %edx, tmp_Arr(, %eax, 4)
+	movl %esi, tmp_Arr(, %eax, 4)
 	cmp %eax, %edx
-	jg loop_Inner_
-find_Next_:	# find minimum in A. tmp array
+	jge loop_Inner_
+find_Next_:	# find minimum in Erist. tmp array
 	addl $1, %ecx
 	cmp %ecx, %edx
 	jl done_
-	cmp tmp_Arr(, %ecx, 4), %edx
+	cmp tmp_Arr(, %ecx, 4), %esi
 	je find_Next_
 
 	movl %ecx, %eax

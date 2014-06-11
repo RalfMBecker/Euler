@@ -56,70 +56,96 @@ convert_:
 	movl %edx, num_LL(, %edi, 4)
 	movl %edx, -4(%ebp)
 
+test:	
+	# get a bound to which prime to check (somewhat ad hoc)
+	cmp $0, %edx
+	je lbl_small_
+	movl $0x0fffffff, highestV   # long long related bound
+# better bound incoming
+	jmp lbl_sieve_
+lbl_small_:	
+	xor %edx, %edx
+	movl $2, %edi
+	divl %edi
+	incl %eax
+	movl %eax, highestV
 	# get square root bound
-	finit
-	fildll num_LL
-	fsqrt
-	frndint
-	fistp highestV
-	addl $1, highestV    # given size of n, won't overflow
+#	finit
+#	fildll num_LL
+#	fsqrt
+#	frndint
+#	fistp highestV
+#	addl $1, highestV    # given size of n, won't overflow
 
+lbl_sieve_:	
 	# generate relevant primes
 	pushl highestV
 	call sieve
 	pushl $prime_Str
 	call printf
 	addl $8, %esp
-
+	
 	# initialize array element pointers
-	movl $1, %ecx     # to prime array
-	xor %esi, %esi     # to factor array
+	movl $0, %ecx     # to prime array
+	movl $-1, %esi     # to factor array
 
 	# handle 2
 loop_2_:
 	movl num_LL, %eax
 	andl $0x1, %eax
 	cmp $0, %eax
-	jne loop_A_
+	jne lbl_from3_
 	shrl num_LL
 	shrl num_LL+4
 	jnc lbl_done2_
 	orl $0x80000000, num_LL  # transferred carry from higher to lower
 lbl_done2_:
-	movl $2, factor_Arr(, %esi, 4)
 	incl %esi
+	movl $2, factor_Arr(, %esi, 4)
 	call foundAll
 	cmp $1, %eax
 	je lbl_foundall_
 	jmp loop_2_
 
-loop_A_:	
 	# all other cases
+lbl_from3_:
+	incl %ecx	
+loop_A_:
+	movl prime_Arr(, %ecx, 4), %edi
+	cmp $0, %edi
+	je lbl_foundall_
+	
 	pushl prime_Arr(, %ecx, 4)
 	call isFactor
 	addl $4, %esp
 	cmp $1, %eax
-	jne lbl_ncheck_
+	jne lbl_lincr_
 
+# missing: multiple factors for case p > 2
+	
+	incl %esi
 	movl prime_Arr(, %ecx, 4), %eax
 	movl %eax, factor_Arr(, %esi, 4)
-	incl %esi
 	call foundAll
 	cmp $1, %eax
 	je lbl_foundall_
+lbl_lincr_:
+	incl %ecx
 	jmp loop_A_
 
-lbl_ncheck_:
-	incl %ecx
-	cmp %ecx, highestV      # if this is true, the variable is prime
-	jne loop_A_
-
+#lbl_ncheck_:
+#	incl %ecx
+#	movl prime_Arr(, %ecx, 4), %edi
+#	cmp $0, %edi
+#	movl prime_Arr(, %ecx, 4), %edi
+#	cmp %edi, highestV      # if this is true, the variable is prime
+#	jne loop_A_
+	
 lbl_foundall_:
 	# print if is prime
-	cmp $0, %esi
+	cmp $-1, %esi
 	jne lbl_hasf_
 
-movl $1, %edi
 	pushl -4(%ebp)
 	pushl -8(%ebp)
 	pushl $res_Str3
@@ -144,7 +170,7 @@ lbl_pf_:
 	popl %ebx
 	incl %ebx
 	cmp %ebx, %esi
-	jg lbl_pf_
+	jge lbl_pf_
 	
 lbl_exit_:	
 	movl %ebp, %esp
@@ -168,7 +194,7 @@ isFactor:
 	fdivr %st(1)         # divide st(1) by st(0), and store in st(0)  
 	frndint              # st(0) - floor(quotient),  st(1) - num_LL
 	fild 8(%esp)
-	fmul %st(0), %st(1)  # st(0) - f(q) * f, st(1) - f(q), st(2) - num_LL
+	fmul %st(1), %st(0)  # st(0) - f(q) * f, st(1) - f(q), st(2) - num_LL
 	fcomip %st(2), %st(0)
 	jne lbl_isf_not_
 	# found a factor
