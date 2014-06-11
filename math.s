@@ -85,23 +85,23 @@ exit:
 # end fibonacci
 
 # Sieve of Eratosthenes
-# Create list of prime numbers smaller than n/2
+# Create list of prime numbers smaller than n
 #
 # Note: - no input error (range) check
-#       - n <= 200,000,000
+#       - n <= 200,000,000 (could be changed)
 # Returns: pointer to array of ints of prime numbers
 #          (0 sentinel at end)
 #
-# Registers: %edx: n/2
-#            %ecx: counting variable (2 - n/2)
+# Registers: %edx: n
+#            %ecx: counting variable (2 - n)
 #            %ebx: pointer into array of primes
 #                  (position next to be added)
 #            %eax: inner pointer to A. tmp array
 #                  (we enter %edx as a placeholder for "is multiple")
 	.section .bss
-	.lcomm tmp_Arr, 800000000
+	.lcomm tmp_Arr, 800000000 # arbitrary size - could be changed
 
-	.comm prime_Arr, 400000000
+	.comm prime_Arr, 200000000
 
 	.section .text
 	.globl sieve
@@ -110,7 +110,6 @@ sieve:
 	pushl %ebp
 	movl %esp, %ebp
 	movl 8(%ebp), %edx
-	shr %edx	# going to n/2 only
 	
 	# create Eratosthenes tmp array
 	movl $0, %ecx

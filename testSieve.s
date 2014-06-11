@@ -7,18 +7,18 @@
 	
 	.section .data
 fmt_Str:
-	.asciz "For n = %d, the prime numbers <= n/2 are:\n"
+	.asciz "For n = %d, the prime numbers <= n are:\n"
 fmt_Str2:
 	.asciz "%d\n"
 defaultV:
-	.int 200000000
+	.int 1000000
 
 	.section .text
 	.globl _start
 _start:
 	movl %esp, %ebp
 
-	# handle command line argument (default = 200,000,000)
+	# handle command line argument (default = 10,000)
 	cmpl $1, (%esp) # argc
 	je noargs
 	pushl 8(%ebp)   #argv[1] (pointer to)
@@ -33,7 +33,6 @@ argsdone:
 	call sieve
 	addl $4, %esp
 test:
-	shr %edi	# only need to to n/2
 	pushl %edi
 	pushl $fmt_Str
 	call printf
