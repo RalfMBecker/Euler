@@ -6,7 +6,8 @@
 #        (2) For each factor f found, we adjust n -> n/f. By (1), for
 #            the next check we also adjust bound to sr(n/f).
 #        (3) atoll returns a long long in (%edx, %eax)
-#        (4) size of n up to ~ quad word
+#        (4) size of n up to ~ quad word. Not recommended for n >
+#            9.99e15 (slow). At <= 9.99e13, fairly fast, 9.99e14 ok.
 #
 ###################################################################
 	
@@ -38,13 +39,14 @@ highestV:
 	.section .text
 	.globl _start
 _start:
+	pushl %ebp
 	movl %esp, %ebp
 	subl $8, %esp	# store n for later printing
 	
 	# handle command line argument (default = 600,851,475,143)
-	cmpl $1, (%ebp) # argc
+	cmpl $1, 4(%ebp) # argc
 	je noargs_
-	pushl 8(%ebp)   #argv[1] (pointer to)
+	pushl 12(%ebp)   #argv[1] (pointer to)
 	jmp convert_
 noargs_:
 	pushl $defV_Str
@@ -61,9 +63,7 @@ convert_:
 	call getSrBound
 
 	# generate relevant primes
-	movl highestV, %eax # algorithm needs 1 more prime
-	incl %eax
-	pushl %eax
+	pushl highestV
 	call sieve
 	pushl $prime_Str
 	call printf
@@ -73,7 +73,7 @@ convert_:
 	movl $0, %ecx     # to prime array
 	movl $-1, %esi    # to factor array
 
-	# handle 2
+	# handle 2 (just because - general case can handle 2 of course)
 loop_2_:
 	movl num_LL, %eax
 	andl $0x1, %eax
@@ -101,7 +101,11 @@ loop_A_:
 	# if yes, current value in num_LL is prime
 	movl prime_Arr(, %ecx, 4), %edi
 	cmp %edi, highestV
-	jg lbl_ctue_
+	jge lbl_ctue_
+	cmp $-1, %esi
+	jne lbl_esif_
+	xor %esi, %esi
+lbl_esif_:	
 	movl factor_Arr(, %esi, 4), %eax
 	cmp %eax, num_LL
 	je lbl_adjusted_
@@ -186,9 +190,13 @@ getSrBound:
 	finit
 	fildll num_LL
 	fsqrt
-	frndint
-	fistp highestV
-	addl $1, highestV
+	fistl highestV          # rounds integers (does NOT truncate)
+	fisubl highestV	        # st(0): V - rd(V) -> if > 0, was rounded down
+	fldz
+	fcomip %st(1), %st(0)
+	jge lbl_getSrBound_     # value is already ceiling(V)
+	addl $1, highestV       # if not, make it
+lbl_getSrBound_:	
 	ret
 # end getSrBound
 	

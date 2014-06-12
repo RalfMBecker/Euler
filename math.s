@@ -119,7 +119,7 @@ loop_Tmp_:
 	movl %ecx, tmp_Arr(, %ecx, 4)
 	addl $1, %ecx
 	cmp %ecx, %edx
-	jg loop_Tmp_
+	jge loop_Tmp_
 
 	# initialize registers used in algorithm
 	movl $2, %ecx   # outer loop counting var
@@ -134,7 +134,7 @@ loop_Inner_:
 	addl %ecx, %eax
 	movl %esi, tmp_Arr(, %eax, 4)
 	cmp %eax, %edx
-	jg loop_Inner_
+	jge loop_Inner_
 find_Next_:	# find minimum in Erist. tmp array
 	addl $1, %ecx
 	cmp %ecx, %edx
