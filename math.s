@@ -88,7 +88,7 @@ exit:
 # Create list of prime numbers smaller than n
 #
 # Note: - no input error (range) check
-#       - n <= 200,000,000 (could be changed)
+#       - n <= 500,000,000 (could be changed)
 # Returns: pointer to array of ints of prime numbers
 #          (0 sentinel at end)
 #
@@ -98,11 +98,12 @@ exit:
 #            %ebx: pointer into array of primes
 #                  (position next to be added)
 #            %eax: inner pointer to A. tmp array
-#                  (we enter %edx as a placeholder for "is multiple")
 	.section .bss
-	.lcomm tmp_Arr, 800000000 # arbitrary size - could be changed
-
-	.comm prime_Arr, 200000000
+	# total size of .bss seems to restricted somewhere < 2^30
+	# to make it more memorable, restrict to a number memorable
+	# in decimal that is n <= 2^30, say 500,000,000
+	.lcomm tmp_Arr, 2000000008  # some safety after
+	.comm prime_Arr, 500000008 # 1 billion plus sentinel and padding
 
 	.section .text
 	.globl sieve
@@ -118,7 +119,7 @@ loop_Tmp_:
 	movl %ecx, tmp_Arr(, %ecx, 4)
 	addl $1, %ecx
 	cmp %ecx, %edx
-	jge loop_Tmp_
+	jg loop_Tmp_
 
 	# initialize registers used in algorithm
 	movl $2, %ecx   # outer loop counting var
@@ -133,7 +134,7 @@ loop_Inner_:
 	addl %ecx, %eax
 	movl %esi, tmp_Arr(, %eax, 4)
 	cmp %eax, %edx
-	jge loop_Inner_
+	jg loop_Inner_
 find_Next_:	# find minimum in Erist. tmp array
 	addl $1, %ecx
 	cmp %ecx, %edx

@@ -2,12 +2,11 @@
 # Euler 3: prime-factorize 600851475143
 # Registers: %ecx - pointer into array of primes
 #            %esi - pointer into factor array
-# Notes: (1) Largest prime to check is sqr(n). To ensure that its
-#            factors fit as an int, assume n <= 2^62 ~ 1 ~ 4.611e18
+# Notes: (1) Largest prime to check could be 500,000,000, but very
+#            slow generation of primes for that. Set to 5,000,000.
 #        (2) atoll returns a long long in (%edx, %eax)
-#
-#	Set up for positive integer in the interval
-#       (2^31 -1, 2^63 -1]
+#        (3) size of n up to qword, but remember largest prime
+#            checked will lead to fail at times
 #
 ###################################################################
 	
@@ -56,19 +55,22 @@ convert_:
 	movl %edx, num_LL(, %edi, 4)
 	movl %edx, -4(%ebp)
 
-test:	
 	# get a bound to which prime to check (somewhat ad hoc)
-	cmp $0, %edx
-	je lbl_small_
-	movl $0x0fffffff, highestV   # long long related bound
-# better bound incoming
+	cmp $0, %edx  # this distinction if from on old version
+	je lbl_small_ # abandoned as too slow (now reduncant code)
+	movl $5000000, highestV   # for speed - could be larger
 	jmp lbl_sieve_
 lbl_small_:	
 	xor %edx, %edx
 	movl $2, %edi
 	divl %edi
 	incl %eax
+	cmp $5000000, %eax
+	jg lbl_pickd_
 	movl %eax, highestV
+	jmp lbl_sieve_
+lbl_pickd_: 
+	movl $5000000, highestV 
 	# get square root bound
 #	finit
 #	fildll num_LL
@@ -111,9 +113,9 @@ lbl_done2_:
 lbl_from3_:
 	incl %ecx	
 loop_A_:
-	movl prime_Arr(, %ecx, 4), %edi
-	cmp $0, %edi
-	je lbl_foundall_
+	movl prime_Arr(, %ecx, 4), %edi # if we exhausted out prime list,
+	cmp $0, %edi         # the number is prime, or has a prime factor
+	je lbl_foundall_     # larger than 500,000,000
 	
 	pushl prime_Arr(, %ecx, 4)
 	call isFactor
@@ -121,26 +123,17 @@ loop_A_:
 	cmp $1, %eax
 	jne lbl_lincr_
 
-# missing: multiple factors for case p > 2
-	
-	incl %esi
 	movl prime_Arr(, %ecx, 4), %eax
+	addl $1, %esi
 	movl %eax, factor_Arr(, %esi, 4)
 	call foundAll
 	cmp $1, %eax
 	je lbl_foundall_
+	jmp loop_A_     # check for multiple factor
 lbl_lincr_:
 	incl %ecx
 	jmp loop_A_
 
-#lbl_ncheck_:
-#	incl %ecx
-#	movl prime_Arr(, %ecx, 4), %edi
-#	cmp $0, %edi
-#	movl prime_Arr(, %ecx, 4), %edi
-#	cmp %edi, highestV      # if this is true, the variable is prime
-#	jne loop_A_
-	
 lbl_foundall_:
 	# print if is prime
 	cmp $-1, %esi
@@ -153,7 +146,7 @@ lbl_foundall_:
 	addl $12, %esp
 	jmp lbl_exit_
 lbl_hasf_:	
-	# print factors if is not prime\
+	# print factors if is not prime (or n = 2 )
 	pushl -4(%ebp)
 	pushl -8(%ebp)
 	pushl $res_Str1
