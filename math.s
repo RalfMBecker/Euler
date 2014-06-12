@@ -102,8 +102,8 @@ exit:
 	# total size of .bss seems to restricted somewhere < 2^30
 	# to make it more memorable, restrict to a number memorable
 	# in decimal that is n <= 2^30, say 500,000,000
-	.lcomm tmp_Arr, 2000000008  # some safety after
-	.comm prime_Arr, 500000008 # 1 billion plus sentinel and padding
+	.lcomm tmp_Arr, 2000000008  # 500,000,000 plus sentinel & padding
+	.comm prime_Arr, 500000008 # asymptotically, primes aren't dense
 
 	.section .text
 	.globl sieve

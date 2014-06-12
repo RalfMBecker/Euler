@@ -2,11 +2,11 @@
 # Euler 3: prime-factorize 600851475143
 # Registers: %ecx - pointer into array of primes
 #            %esi - pointer into factor array
-# Notes: (1) Largest prime to check could be 500,000,000, but very
-#            slow generation of primes for that. Set to 5,000,000.
-#        (2) atoll returns a long long in (%edx, %eax)
-#        (3) size of n up to qword, but remember largest prime
-#            checked will lead to fail at times
+# Notes: (1) A composite number n has a prime factor <= square root(n)
+#        (2) For each factor f found, we adjust n -> n/f. By (1), for
+#            the next check we also adjust bound to sr(n/f).
+#        (3) atoll returns a long long in (%edx, %eax)
+#        (4) size of n up to ~ quad word
 #
 ###################################################################
 	
@@ -16,7 +16,7 @@ prime_Str:
 res_Str1:
 	.asciz "The prime factors of %qd are:\n"
 res_Str2:
-	.asciz "%d\n"
+	.asciz "%d (%d)\n"
 res_Str3:
 	.asciz "%qd is prime\n"
 defV_Str:
@@ -29,7 +29,9 @@ highestV:
 	.int 0
 	
 	.section .bss
+	
 	.lcomm factor_Arr, 1000
+	.lcomm mult_Arr, 1000
 	
 ##############################
 
@@ -55,33 +57,13 @@ convert_:
 	movl %edx, num_LL(, %edi, 4)
 	movl %edx, -4(%ebp)
 
-	# get a bound to which prime to check (somewhat ad hoc)
-	cmp $0, %edx  # this distinction if from on old version
-	je lbl_small_ # abandoned as too slow (now reduncant code)
-	movl $5000000, highestV   # for speed - could be larger
-	jmp lbl_sieve_
-lbl_small_:	
-	xor %edx, %edx
-	movl $2, %edi
-	divl %edi
-	incl %eax
-	cmp $5000000, %eax
-	jg lbl_pickd_
-	movl %eax, highestV
-	jmp lbl_sieve_
-lbl_pickd_: 
-	movl $5000000, highestV 
-	# get square root bound
-#	finit
-#	fildll num_LL
-#	fsqrt
-#	frndint
-#	fistp highestV
-#	addl $1, highestV    # given size of n, won't overflow
+	# get a bound to which prime to check
+	call getSrBound
 
-lbl_sieve_:	
 	# generate relevant primes
-	pushl highestV
+	movl highestV, %eax # algorithm needs 1 more prime
+	incl %eax
+	pushl %eax
 	call sieve
 	pushl $prime_Str
 	call printf
@@ -89,7 +71,7 @@ lbl_sieve_:
 	
 	# initialize array element pointers
 	movl $0, %ecx     # to prime array
-	movl $-1, %esi     # to factor array
+	movl $-1, %esi    # to factor array
 
 	# handle 2
 loop_2_:
@@ -102,33 +84,53 @@ loop_2_:
 	jnc lbl_done2_
 	orl $0x80000000, num_LL  # transferred carry from higher to lower
 lbl_done2_:
-	incl %esi
+	xor %esi, %esi
 	movl $2, factor_Arr(, %esi, 4)
+	addl $1, mult_Arr(, %esi, 4)
 	call foundAll
 	cmp $1, %eax
 	je lbl_foundall_
+	call getSrBound
 	jmp loop_2_
 
 	# all other cases
 lbl_from3_:
 	incl %ecx	
 loop_A_:
-	movl prime_Arr(, %ecx, 4), %edi # if we exhausted out prime list,
-	cmp $0, %edi         # the number is prime, or has a prime factor
-	je lbl_foundall_     # larger than 500,000,000
+	# check if we hit (updated) square root bound first
+	# if yes, current value in num_LL is prime
+	movl prime_Arr(, %ecx, 4), %edi
+	cmp %edi, highestV
+	jg lbl_ctue_
+	movl factor_Arr(, %esi, 4), %eax
+	cmp %eax, %edi
+	je lbl_adjusted_    # comment out for 'work'
+	addl $1, %esi
+lbl_adjusted_:
+	movl num_LL, %eax
+	movl %eax, factor_Arr(, %esi, 4)
+	addl $1, mult_Arr(, %esi, 4)
+	jmp lbl_foundall_
 	
+lbl_ctue_:	
 	pushl prime_Arr(, %ecx, 4)
 	call isFactor
 	addl $4, %esp
 	cmp $1, %eax
 	jne lbl_lincr_
 
-	movl prime_Arr(, %ecx, 4), %eax
+	movl prime_Arr(, %ecx, 4), %edi
+	movl factor_Arr(, %esi, 4), %eax
+	cmp %eax, %edi
+	je lbl_adjusted2_
 	addl $1, %esi
-	movl %eax, factor_Arr(, %esi, 4)
+lbl_adjusted2_:
+	movl %edi, factor_Arr(, %esi, 4)
+	addl $1, mult_Arr(, %esi, 4)
 	call foundAll
 	cmp $1, %eax
 	je lbl_foundall_
+	call getSrBound
 	jmp loop_A_     # check for multiple factor
 lbl_lincr_:
 	incl %ecx
@@ -136,7 +138,9 @@ lbl_lincr_:
 
 lbl_foundall_:
 	# print if is prime
-	cmp $-1, %esi
+	cmp $0, %esi
+	jne lbl_hasf_
+	cmp $1, mult_Arr(, %esi, 4)
 	jne lbl_hasf_
 
 	pushl -4(%ebp)
@@ -156,10 +160,11 @@ lbl_hasf_:
 	xor %ebx, %ebx
 lbl_pf_:
 	pushl %ebx      # save for later retrieval
+	pushl mult_Arr(, %ebx, 4)
 	pushl factor_Arr(, %ebx, 4)
 	pushl $res_Str2
 	call printf
-	addl $8, %esp
+	addl $12, %esp
 	popl %ebx
 	incl %ebx
 	cmp %ebx, %esi
@@ -174,7 +179,20 @@ lbl_exit_:
 # end euler 3
 
 
-# Is arg_1 a factor of (num_LL, num_LL+4) ?
+	# get square root bound
+	.globl getSrBound
+	.type getSrBound, @function
+getSrBound:	
+	finit
+	fildll num_LL
+	fsqrt
+	frndint
+	fistp highestV
+	addl $1, highestV
+	ret
+# end getSrBound
+	
+	# Is arg_1 a factor of (num_LL, num_LL+4) ?
 	.globl isFactor
 	.type isFactor, @function
 isFactor:
