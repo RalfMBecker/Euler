@@ -103,8 +103,8 @@ loop_A_:
 	cmp %edi, highestV
 	jg lbl_ctue_
 	movl factor_Arr(, %esi, 4), %eax
-	cmp %eax, %edi
-	je lbl_adjusted_    # comment out for 'work'
+	cmp %eax, num_LL
+	je lbl_adjusted_
 	addl $1, %esi
 lbl_adjusted_:
 	movl num_LL, %eax
