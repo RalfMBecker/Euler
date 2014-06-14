@@ -1,7 +1,9 @@
-######################################################
+####################################################################
 # Common math functions
 #
-######################################################
+# Register convention: - %eax, %ecx, %edx can be modified
+#                      - any other register used is pushed and popped
+#####################################################################
 
 # modulo
 # assumes integer values handed on for a % b
@@ -13,7 +15,7 @@
 modulo:
 	pushl %ebp
 	movl %esp, %ebp
-
+	
 #	xor %edx, %edx     # would work only for unsigned integers
 	movl 8(%ebp), %eax # dividend
 	cdq                # sign-extend 32b value in %eax to %edx:%eax
@@ -25,6 +27,95 @@ modulo:
 	ret
 # end modulo
 
+# max(a, b)
+# assumes integer values for a and b
+# Calling and return convention
+	.section .text
+	.globl max
+	.type max, @function
+max:
+	pushl %ebp
+	movl %esp, %ebp
+
+	movl 8(%ebp), %eax
+	cmp %eax, 12(%ebp)
+	jle lbl_maxe_
+	movl 12(%esp), %eax
+lbl_maxe_:
+
+	movl %ebp, %esp
+	popl %ebp
+	ret
+# end max(a, b)
+
+# min(a, b)
+# assumes integer values for a and b
+# Calling and return convention
+	.section .text
+	.globl min
+	.type min, @function
+min:
+	pushl %ebp
+	movl %esp, %ebp
+
+	movl 8(%ebp), %eax
+	cmp %eax, 12(%ebp)
+	jge lbl_maxe_
+	movl 12(%esp), %eax
+lbl_mine_:
+
+	movl %ebp, %esp
+	popl %ebp
+	ret
+# end min(a, b)
+
+# gcd(a,b)
+# Euclid's Algorithm:
+# if (min(a,b) == 0) return max(a,b) (fine also both 0 as gcd(0,0) = 0)
+# else return gcd(min(a,b), max(a,b) % min(a,b)
+	.section .text
+	.globl gcd
+	.type gcd, @function
+gcd:
+	pushl %ebp
+	movl %esp, %ebp
+	subl $8, %esp 	# space for min(a,b) and max(a,b)
+
+	pushl 12(%ebp)
+	pushl 8(%ebp)
+	call max
+	addl $8, %esp
+	movl %eax, -4(%ebp)  # holds max
+	pushl 12(%ebp)
+	pushl 8(%ebp)
+	call min
+	addl $8, %esp
+	movl %eax, -8(%ebp)  # holds min
+	
+	# check for termination
+	cmp $0, -8(%ebp)
+	jne lbl_gcdrec_
+	movl -4(%ebp), %eax
+	jmp lbl_gcdexit_
+
+	#recurse
+lbl_gcdrec_:
+	pushl -8(%esp)	# modulo
+	pushl -4(%esp)
+	call modulo
+	addl $8, %esp
+	
+	pushl %eax
+	pushl -8(%esp)
+	call gcd	# %eax of deepest recursion level handed
+	addl $8, %esp   # on through the unrolling iterations
+	
+lbl_gcdexit_:	
+	movl %ebp, %esp
+	popl %ebp
+	ret
+# end gcd(a, b)
+	
 # fibonacci
 # C calling convention, with non-negative integer on top of stack
 # Calculation: f(0) = 0
@@ -112,6 +203,8 @@ sieve:
 	pushl %ebp
 	movl %esp, %ebp
 	movl 8(%ebp), %edx
+	pushl %esi
+	pushl %ebx
 	
 	# create Eratosthenes tmp array
 	movl $0, %ecx
@@ -148,6 +241,8 @@ done_:
 	movl $0, prime_Arr(, %ebx, 4)       # sentinel
 	movl $prime_Arr, %eax
 
+	popl %ebx
+	popl %esi
 	movl %ebp, %esp
 	popl %ebp
 	ret

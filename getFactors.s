@@ -1,5 +1,5 @@
 ####################################################################
-# Euler 3: prime-factorize 600851475143
+# Prime-factorize n (up to long long - see arg)
 # Registers: %ecx - pointer into array of primes
 #            %esi - pointer into factor array
 # Notes: (1) A composite number n has a prime factor <= square root(n)
@@ -9,19 +9,12 @@
 #        (4) size of n up to ~ quad word. Not recommended for n >
 #            9.99e15 (slow). At <= 9.99e13, fairly fast, 9.99e14 ok.
 #
+# Arg: Expects a quad word arg in little-endian format!
+#
+# Returns: %eax: pointer to factor array
+#          %edx: pointer to multiplicity array
+#
 ###################################################################
-	
-	.section .rodata
-prime_Str:
-	.asciz "prime factors retrieved...\n"
-res_Str1:
-	.asciz "The prime factors of %qd are:\n"
-res_Str2:
-	.asciz "%d (%d)\n"
-res_Str3:
-	.asciz "%qd is prime\n"
-defV_Str:
-	.asciz "600851475143"
 	
 	.section .data
 num_LL:
@@ -37,22 +30,18 @@ highestV:
 ##############################
 
 	.section .text
-	.globl _start
-_start:
+	.globl getFactors
+	.type getFactors, @function
+getFactors:
 	pushl %ebp
 	movl %esp, %ebp
 	subl $8, %esp	# store n for later printing
+	pushl %ebx
+	pushl %edi
+	pushl %esi
 	
-	# handle command line argument (default = 600,851,475,143)
-	cmpl $1, 4(%ebp) # argc
-	je noargs_
-	pushl 12(%ebp)   #argv[1] (pointer to)
-	jmp convert_
-noargs_:
-	pushl $defV_Str
-convert_:	
-	call atoll
-	addl $4, %esp
+	movl 12(%ebp), %eax     # higher order dword
+	movl 8(%ebp), %edx     # lower order dword
 	movl $1, %edi
 	movl %eax, num_LL	# store lower order dword first
 	movl %eax, -8(%ebp)
@@ -65,9 +54,7 @@ convert_:
 	# generate relevant primes
 	pushl highestV
 	call sieve
-	pushl $prime_Str
-	call printf
-	addl $8, %esp
+	addl $4, %esp
 	
 	# initialize array element pointers
 	movl $0, %ecx     # to prime array
@@ -141,46 +128,16 @@ lbl_lincr_:
 	jmp loop_A_
 
 lbl_foundall_:
-	# print if is prime
-	cmp $0, %esi
-	jne lbl_hasf_
-	cmp $1, mult_Arr(, %esi, 4)
-	jne lbl_hasf_
-
-	pushl -4(%ebp)
-	pushl -8(%ebp)
-	pushl $res_Str3
-	call printf
-	addl $12, %esp
-	jmp lbl_exit_
-lbl_hasf_:	
-	# print factors if is not prime (or n = 2 )
-	pushl -4(%ebp)
-	pushl -8(%ebp)
-	pushl $res_Str1
-	call printf
-	addl $12, %esp
-
-	xor %ebx, %ebx
-lbl_pf_:
-	pushl %ebx      # save for later retrieval
-	pushl mult_Arr(, %ebx, 4)
-	pushl factor_Arr(, %ebx, 4)
-	pushl $res_Str2
-	call printf
-	addl $12, %esp
-	popl %ebx
-	incl %ebx
-	cmp %ebx, %esi
-	jge lbl_pf_
+	movl $factor_Arr, %eax
+	movl $mult_Arr, %edx
 	
-lbl_exit_:	
+	popl %esi
+	popl %edi
+	popl %ebx
 	movl %ebp, %esp
 	popl %ebp
-	movl $0, %ebx
-	movl $1, %eax
-	int $0x80
-# end euler 3
+	ret
+# end getFactors
 
 
 	# get square root bound
