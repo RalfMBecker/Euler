@@ -16,15 +16,10 @@
 ###################################################################
 	
 	.section .data
-num_LL:       # to do: REMOVE
+c_getF_numLL:
 	.int 0, 0
-highestV:     # to do: CHANGE NAME
+c_getF_highestV:
 	.int 0
-	
-#	.section .bss
-	
-#	.lcomm factor_Arr, 1000
-#	.lcomm mult_Arr, 1000
 	
 ##############################
 
@@ -47,78 +42,64 @@ getFactors:
 	movl 12(%ebp), %eax     # higher order dword
 	movl 8(%ebp), %edx      # lower order dword
 	movl $1, %edi
-	movl %eax, num_LL(, %edi, 4)
+	movl %eax, c_getF_numLL(, %edi, 4)
 	movl %eax, -4(%ebp)
-	movl %edx, num_LL
+	movl %edx, c_getF_numLL
 	movl %edx, -8(%ebp)
 
 	# get a bound to which prime to check
 	call getSrBound
 
 	# generate relevant primes
-	pushl highestV
+	pushl c_getF_highestV
 	call sieve
 	addl $4, %esp
 	
 	# initialize array element pointers
 	movl $0, %ecx     # to prime array
-#	movl $-1, %esi    # to factor array
 
 	# handle 2 (just because - general case can handle 2 of course)
-loop_2_:
-	movl num_LL, %eax
+0:
+	movl c_getF_numLL, %eax
 	andl $0x1, %eax
 	cmp $0, %eax
 	jne lbl_from3_
-	shrl num_LL
-	shrl num_LL+4
-	jnc lbl_done2_
-	orl $0x80000000, num_LL  # transferred carry from higher to lower
-lbl_done2_:
-#	xor %esi, %esi
+	shrl c_getF_numLL
+	shrl c_getF_numLL+4
+	jnc 1
+	orl $0x80000000, c_getF_numLL  # transferred carry from higher to lower
+1:
 	movl -12(%ebp), %eax
 	movl $2, (%eax)        # store factors
-#	movl $2, factor_Arr(, %esi, 4)
 	movl -16(%ebp), %eax
 	addl $1, (%eax)        # increase its multiplicity         
-#	addl $1, mult_Arr(, %esi, 4)
 	call foundAll
 	cmp $1, %eax
 	je lbl_foundall_
 	call getSrBound
-	jmp loop_2_
+	jmp 0b
 
 	# all other cases
 lbl_from3_:
 	incl %ecx	
 loop_A_:
 	# check if we hit (updated) square root bound first
-	# if yes, current value in num_LL is prime
+	# if yes, current value in c_getF_numLL is prime
 	movl prime_Arr(, %ecx, 4), %edi
-	cmp %edi, highestV
+	cmp %edi, c_getF_highestV
 	jg lbl_ctue_
-#	cmp $-1, %esi      # STILL OK?
-#	jne lbl_esif_
-#	xor %esi, %esi
-#	jmp lbl_adjusted_
-#lbl_esif_:	
 	movl -12(%ebp), %eax
 	movl (%eax), %eax
-#	movl factor_Arr(, %esi, 4), %eax
-	cmp %eax, num_LL
+	cmp %eax, c_getF_numLL
 	je lbl_adjusted_
 	addl $4, -12(%ebp)
 	addl $4, -16(%ebp)
-#	addl $1, %esi
 lbl_adjusted_:
 	movl -12(%ebp), %eax
-	movl num_LL, %ebx
+	movl c_getF_numLL, %ebx
         movl %ebx, (%eax)
-#	movl num_LL, %eax
-#	movl %eax, factor_Arr(, %esi, 4)
 	movl -16(%ebp), %eax
 	addl $1, (%eax)
-#	addl $1, mult_Arr(, %esi, 4)
 	jmp lbl_foundall_
 	
 lbl_ctue_:	
@@ -131,21 +112,20 @@ lbl_ctue_:
 	movl prime_Arr(, %ecx, 4), %edi
 	movl -12(%ebp), %eax
 	movl (%eax), %eax
-#	movl factor_Arr(, %esi, 4), %eax
 	cmp %eax, %edi
-	je lbl_adjusted2_      # ** TO DO: increases in first iteration
+	je lbl_notNew_   # not a new factor
+	cmp $0, %eax
+	je lbl_notNew_   # not the first factor found
 	addl $4, -12(%ebp)
-	movl $4, -16(%ebp)
+	addl $4, -16(%ebp)
 #	addl $1, %esi
-lbl_adjusted2_:
+lbl_notNew_:
 	movl -12(%ebp), %eax
 	movl %edi, (%eax)	# add next factor
-#	movl %edi, factor_Arr(, %esi, 4)
 	movl -16(%ebp), %eax
 	addl $1, (%eax)		# and increase its multiplicity
-#	addl $1, mult_Arr(, %esi, 4)
 	call foundAll
-	cmp $1, %eax
+	cmp $1, %edi
 	je lbl_foundall_
 	call getSrBound
 	jmp loop_A_     # check for multiple factor
@@ -162,8 +142,6 @@ lbl_lincr_:
 	movl $0, (%eax)	
 	
 lbl_foundall_:
-#	movl $factor_Arr, %eax
-#	movl $mult_Arr, %edx
 	
 	popl %esi
 	popl %edi
@@ -179,19 +157,19 @@ lbl_foundall_:
 	.type getSrBound, @function
 getSrBound:	
 	finit
-	fildll num_LL
+	fildll c_getF_numLL
 	fsqrt
-	fistl highestV          # rounds integers (does NOT truncate)
-	fisubl highestV	        # st(0): V - rd(V) -> if > 0, was rounded down
+	fistl c_getF_highestV   # rounds integers (does NOT truncate)
+	fisubl c_getF_highestV	# st(0): V - rd(V) -> if > 0, was rounded down
 	fldz
 	fcomip %st(1), %st(0)
 	jl lbl_getSrBound_     # value is already ceiling(V)
-	addl $1, highestV       # if not, make it
+	addl $1, c_getF_highestV       # if not, make it
 lbl_getSrBound_:	
 	ret
 # end getSrBound
 	
-	# Is arg_1 a factor of (num_LL, num_LL+4) ?
+	# Is arg_1 a factor of (c_getF_numLL, c_getF_numLL+4) ?
 	.globl isFactor
 	.type isFactor, @function
 isFactor:
@@ -199,17 +177,17 @@ isFactor:
 	movl %esp, %ebp
 
 	finit
-	fildll num_LL
+	fildll c_getF_numLL
 	fild 8(%ebp)
 	fdivr %st(1)         # divide st(1) by st(0), and store in st(0)  
-	frndint              # st(0) - floor(quotient),  st(1) - num_LL
+	frndint              # st(0) - floor(quotient),  st(1) - c_getF_numLL
 	fild 8(%esp)
-	fmul %st(1), %st(0)  # st(0) - f(q) * f, st(1) - f(q), st(2) - num_LL
+	fmul %st(1), %st(0)  # st(0): f(q) * f, st(1): f(q), st(2): c_getF_numLL
 	fcomip %st(2), %st(0)
 	jne lbl_isf_not_
 	# found a factor
 	movl $1, %eax
-	fistpll num_LL       # actual value we want (f(q) == q if we get here)
+	fistpll c_getF_numLL  # actual value we want (f(q) == q if we get here)
 	jmp lbl_isf_out_
 lbl_isf_not_:
 	xor %eax, %eax
@@ -226,9 +204,9 @@ foundAll:
 	pushl %ebp
 	movl %esp, %ebp
 
-	cmp $1, num_LL
+	cmp $1, c_getF_numLL
 	jne lbl_fa_not_
-	cmp $0, num_LL + 4
+	cmp $0, c_getF_numLL + 4
 	jne lbl_fa_not_
 	movl $1, %eax
 	jmp lbl_fa_out_
