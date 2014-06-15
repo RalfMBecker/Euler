@@ -1,31 +1,30 @@
 ####################################################################
-# Prime-factorize n (up to long long - see arg)
+# getFactors(long long n, int* pFactors, int* pMults)
+#
 # Registers: %ecx - pointer into array of primes
-#            %esi - pointer into factor array
+#
 # Notes: (1) A composite number n has a prime factor <= square root(n)
 #        (2) For each factor f found, we adjust n -> n/f. By (1), for
 #            the next check we also adjust bound to sr(n/f).
-#        (3) atoll returns a long long in (%edx, %eax)
-#        (4) size of n up to ~ quad word. Not recommended for n >
+#        (3) size of n up to ~ quad word. Not recommended for n >
 #            9.99e15 (slow). At <= 9.99e13, fairly fast, 9.99e14 ok.
 #
-# Arg: Expects a quad word arg in little-endian format!
-#
-# Returns: %eax: pointer to factor array
-#          %edx: pointer to multiplicity array
+# Args: n - quad word in little-endian format
+#       pFactors - pointer to array of integers to hold factors
+#       pMults - pointer to array of integers to hold their multiplicity
 #
 ###################################################################
 	
 	.section .data
-num_LL:
+num_LL:       # to do: REMOVE
 	.int 0, 0
-highestV:
+highestV:     # to do: CHANGE NAME
 	.int 0
 	
-	.section .bss
+#	.section .bss
 	
-	.lcomm factor_Arr, 1000
-	.lcomm mult_Arr, 1000
+#	.lcomm factor_Arr, 1000
+#	.lcomm mult_Arr, 1000
 	
 ##############################
 
@@ -35,18 +34,23 @@ highestV:
 getFactors:
 	pushl %ebp
 	movl %esp, %ebp
-	subl $8, %esp	# store n for later printing
+	subl $16, %esp	# store args
 	pushl %ebx
 	pushl %edi
 	pushl %esi
-	
+
+	movl 16(%ebp), %eax
+	movl %eax, -12(%ebp)    # pointer to array of ints (factors)
+	movl 20(%ebp), %eax
+	movl %eax, -16(%ebp)    # pointer to array of ints (multiplicity)
+
 	movl 12(%ebp), %eax     # higher order dword
-	movl 8(%ebp), %edx     # lower order dword
+	movl 8(%ebp), %edx      # lower order dword
 	movl $1, %edi
-	movl %eax, num_LL	# store lower order dword first
-	movl %eax, -8(%ebp)
-	movl %edx, num_LL(, %edi, 4)
-	movl %edx, -4(%ebp)
+	movl %eax, num_LL(, %edi, 4)
+	movl %eax, -4(%ebp)
+	movl %edx, num_LL
+	movl %edx, -8(%ebp)
 
 	# get a bound to which prime to check
 	call getSrBound
@@ -58,7 +62,7 @@ getFactors:
 	
 	# initialize array element pointers
 	movl $0, %ecx     # to prime array
-	movl $-1, %esi    # to factor array
+#	movl $-1, %esi    # to factor array
 
 	# handle 2 (just because - general case can handle 2 of course)
 loop_2_:
@@ -71,9 +75,13 @@ loop_2_:
 	jnc lbl_done2_
 	orl $0x80000000, num_LL  # transferred carry from higher to lower
 lbl_done2_:
-	xor %esi, %esi
-	movl $2, factor_Arr(, %esi, 4)
-	addl $1, mult_Arr(, %esi, 4)
+#	xor %esi, %esi
+	movl -12(%ebp), %eax
+	movl $2, (%eax)        # store factors
+#	movl $2, factor_Arr(, %esi, 4)
+	movl -16(%ebp), %eax
+	addl $1, (%eax)        # increase its multiplicity         
+#	addl $1, mult_Arr(, %esi, 4)
 	call foundAll
 	cmp $1, %eax
 	je lbl_foundall_
@@ -88,19 +96,29 @@ loop_A_:
 	# if yes, current value in num_LL is prime
 	movl prime_Arr(, %ecx, 4), %edi
 	cmp %edi, highestV
-	jge lbl_ctue_
-	cmp $-1, %esi
-	jne lbl_esif_
-	xor %esi, %esi
-lbl_esif_:	
-	movl factor_Arr(, %esi, 4), %eax
+	jg lbl_ctue_
+#	cmp $-1, %esi      # STILL OK?
+#	jne lbl_esif_
+#	xor %esi, %esi
+#	jmp lbl_adjusted_
+#lbl_esif_:	
+	movl -12(%ebp), %eax
+	movl (%eax), %eax
+#	movl factor_Arr(, %esi, 4), %eax
 	cmp %eax, num_LL
 	je lbl_adjusted_
-	addl $1, %esi
+	addl $4, -12(%ebp)
+	addl $4, -16(%ebp)
+#	addl $1, %esi
 lbl_adjusted_:
-	movl num_LL, %eax
-	movl %eax, factor_Arr(, %esi, 4)
-	addl $1, mult_Arr(, %esi, 4)
+	movl -12(%ebp), %eax
+	movl num_LL, %ebx
+        movl %ebx, (%eax)
+#	movl num_LL, %eax
+#	movl %eax, factor_Arr(, %esi, 4)
+	movl -16(%ebp), %eax
+	addl $1, (%eax)
+#	addl $1, mult_Arr(, %esi, 4)
 	jmp lbl_foundall_
 	
 lbl_ctue_:	
@@ -111,13 +129,21 @@ lbl_ctue_:
 	jne lbl_lincr_
 
 	movl prime_Arr(, %ecx, 4), %edi
-	movl factor_Arr(, %esi, 4), %eax
+	movl -12(%ebp), %eax
+	movl (%eax), %eax
+#	movl factor_Arr(, %esi, 4), %eax
 	cmp %eax, %edi
-	je lbl_adjusted2_
-	addl $1, %esi
+	je lbl_adjusted2_      # ** TO DO: increases in first iteration
+	addl $4, -12(%ebp)
+	movl $4, -16(%ebp)
+#	addl $1, %esi
 lbl_adjusted2_:
-	movl %edi, factor_Arr(, %esi, 4)
-	addl $1, mult_Arr(, %esi, 4)
+	movl -12(%ebp), %eax
+	movl %edi, (%eax)	# add next factor
+#	movl %edi, factor_Arr(, %esi, 4)
+	movl -16(%ebp), %eax
+	addl $1, (%eax)		# and increase its multiplicity
+#	addl $1, mult_Arr(, %esi, 4)
 	call foundAll
 	cmp $1, %eax
 	je lbl_foundall_
@@ -127,9 +153,17 @@ lbl_lincr_:
 	incl %ecx
 	jmp loop_A_
 
+	# add a sentinel
+	addl $4, -12(%ebp)
+	addl $4, -16(%ebp)
+	movl -12(%ebp), %eax
+	movl $0, (%eax)
+	movl -16(%ebp), %eax
+	movl $0, (%eax)	
+	
 lbl_foundall_:
-	movl $factor_Arr, %eax
-	movl $mult_Arr, %edx
+#	movl $factor_Arr, %eax
+#	movl $mult_Arr, %edx
 	
 	popl %esi
 	popl %edi
@@ -151,7 +185,7 @@ getSrBound:
 	fisubl highestV	        # st(0): V - rd(V) -> if > 0, was rounded down
 	fldz
 	fcomip %st(1), %st(0)
-	jge lbl_getSrBound_     # value is already ceiling(V)
+	jl lbl_getSrBound_     # value is already ceiling(V)
 	addl $1, highestV       # if not, make it
 lbl_getSrBound_:	
 	ret

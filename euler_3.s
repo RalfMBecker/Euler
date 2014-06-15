@@ -61,7 +61,7 @@ convert_:
 
 	# get a bound to which prime to check
 	call getSrBound
-
+test:	
 	# generate relevant primes
 	pushl highestV
 	call sieve
@@ -101,10 +101,11 @@ loop_A_:
 	# if yes, current value in num_LL is prime
 	movl prime_Arr(, %ecx, 4), %edi
 	cmp %edi, highestV
-	jge lbl_ctue_
+	jg lbl_ctue_
 	cmp $-1, %esi
 	jne lbl_esif_
 	xor %esi, %esi
+	jmp lbl_adjusted_
 lbl_esif_:	
 	movl factor_Arr(, %esi, 4), %eax
 	cmp %eax, num_LL
@@ -194,7 +195,7 @@ getSrBound:
 	fisubl highestV	        # st(0): V - rd(V) -> if > 0, was rounded down
 	fldz
 	fcomip %st(1), %st(0)
-	jge lbl_getSrBound_     # value is already ceiling(V)
+	jl lbl_getSrBound_     # value is already ceiling(V)
 	addl $1, highestV       # if not, make it
 lbl_getSrBound_:	
 	ret
