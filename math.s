@@ -93,7 +93,7 @@ gcd:
 	movl %eax, -8(%ebp)  # holds min
 	
 	# check for termination
-	cmp $0, -8(%ebp)
+	cmpl $0, -8(%ebp)
 	jne lbl_gcdrec_
 	movl -4(%ebp), %eax
 	jmp lbl_gcdexit_
@@ -139,15 +139,15 @@ fibonacci:
 
 	# base cases
 	cmpl $0, %edx
-	jg positive
+	jg lbl_fib_pos_
 	xor %eax, %eax
 	jmp exit
-positive:
+lbl_fib_pos_:
 	cmpl $2, %edx
-	jg calculate
+	jg lbl_fib_calc_
 	movl $1, %eax
 	jmp exit
-calculate:
+lbl_fib_calc_:
 	# fib(n-1)
 	movl %edx, %ebx
 	subl $1, %ebx
@@ -166,7 +166,7 @@ calculate:
 
 	addl %ebx, %ecx
 	movl %ecx, %eax
-exit:
+lbl_fib_exit:
 	popl %ebx
 	popl %ecx
 	popl %edx
@@ -179,7 +179,8 @@ exit:
 # Create list of prime numbers smaller than n
 #
 # Note: - no input error (range) check
-#       - n <= 500,000,000 (could be changed)
+#       - n <= 500,000,000 (could be changed) - in assembly
+#         compiling it with gcc: trouble. make n <= 50,000,000
 # Returns: pointer to array of ints of prime numbers
 #          (0 sentinel at end)
 #
@@ -193,8 +194,10 @@ exit:
 	# total size of .bss seems to restricted somewhere < 2^30
 	# to make it more memorable, restrict to a number memorable
 	# in decimal that is n <= 2^30, say 500,000,000
-	.lcomm tmp_Arr, 2000000008  # 500,000,000 plus sentinel & padding
-	.comm prime_Arr, 500000008 # asymptotically, primes aren't dense
+#	.lcomm tmp_Arr, 2000000008  # 500,000,000 plus sentinel & padding
+#	.comm prime_Arr, 500000008 # asymptotically, primes aren't dense
+	.lcomm tmp_Arr, 200000008  # 50,000,000 plus sentinel & padding
+	.comm prime_Arr, 50000008 # asymptotically, primes aren't dense
 
 	.section .text
 	.globl sieve
@@ -208,11 +211,11 @@ sieve:
 	
 	# create Eratosthenes tmp array
 	movl $0, %ecx
-loop_Tmp_:	
+loop_sieve_Tmp_:	
 	movl %ecx, tmp_Arr(, %ecx, 4)
 	addl $1, %ecx
 	cmp %ecx, %edx
-	jge loop_Tmp_
+	jge loop_sieve_Tmp_
 
 	# initialize registers used in algorithm
 	movl $2, %ecx   # outer loop counting var
@@ -220,24 +223,24 @@ loop_Tmp_:
 	xor %ebx, %ebx  # pointer to prime array
 	movl %edx, %esi
 	incl %esi       # sentinel (or placeholder for 'not prime')
-loop_Outer_:
+loop_sieve_Outer_:
 	movl %ecx, prime_Arr(, %ebx, 4)  # record prime
 	incl %ebx
-loop_Inner_:
+loop_sieve_Inner_:
 	addl %ecx, %eax
 	movl %esi, tmp_Arr(, %eax, 4)
 	cmp %eax, %edx
-	jge loop_Inner_
+	jge loop_sieve_Inner_
 find_Next_:	# find minimum in Erist. tmp array
 	addl $1, %ecx
 	cmp %ecx, %edx
-	jl done_
+	jl lbl_sieve_done_
 	cmp tmp_Arr(, %ecx, 4), %esi
 	je find_Next_
 
 	movl %ecx, %eax
-	jmp loop_Outer_
-done_:
+	jmp loop_sieve_Outer_
+lbl_sieve_done_:
 	movl $0, prime_Arr(, %ebx, 4)       # sentinel
 	movl $prime_Arr, %eax
 

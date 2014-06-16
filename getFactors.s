@@ -29,27 +29,27 @@ c_getF_highestV:
 getFactors:
 	pushl %ebp
 	movl %esp, %ebp
-	subl $16, %esp	# store args
+	subl $8, %esp	# store args 2 & 3
 	pushl %ebx
 	pushl %edi
 	pushl %esi
 
 	movl 16(%ebp), %eax
-	movl %eax, -12(%ebp)    # pointer to array of ints (factors)
+	movl %eax, -4(%ebp)    # pointer to array of ints (factors)
+	movl $0, (%eax)        # make currently pointed to values zero
 	movl 20(%ebp), %eax
-	movl %eax, -16(%ebp)    # pointer to array of ints (multiplicity)
-
+	movl %eax, -8(%ebp)    # pointer to array of ints (multiplicity)
+	movl $0, (%eax)        # make currently pointed to values zero
+	
 	movl 12(%ebp), %eax     # higher order dword
 	movl 8(%ebp), %edx      # lower order dword
 	movl $1, %edi
 	movl %eax, c_getF_numLL(, %edi, 4)
-	movl %eax, -4(%ebp)
 	movl %edx, c_getF_numLL
-	movl %edx, -8(%ebp)
 
 	# get a bound to which prime to check
 	call getSrBound
-
+test:	
 	# generate relevant primes
 	pushl c_getF_highestV
 	call sieve
@@ -66,12 +66,12 @@ getFactors:
 	jne lbl_from3_
 	shrl c_getF_numLL
 	shrl c_getF_numLL+4
-	jnc 1
+	jnc 1f
 	orl $0x80000000, c_getF_numLL  # transferred carry from higher to lower
 1:
-	movl -12(%ebp), %eax
+	movl -4(%ebp), %eax
 	movl $2, (%eax)        # store factors
-	movl -16(%ebp), %eax
+	movl -8(%ebp), %eax
 	addl $1, (%eax)        # increase its multiplicity         
 	call foundAll
 	cmp $1, %eax
@@ -88,17 +88,21 @@ loop_A_:
 	movl prime_Arr(, %ecx, 4), %edi
 	cmp %edi, c_getF_highestV
 	jg lbl_ctue_
-	movl -12(%ebp), %eax
+	movl -4(%ebp), %eax
 	movl (%eax), %eax
 	cmp %eax, c_getF_numLL
 	je lbl_adjusted_
-	addl $4, -12(%ebp)
-	addl $4, -16(%ebp)
+	addl $4, -4(%ebp)       # increment...
+	movl -4(%ebp), %eax
+	movl $0, (%eax)         # ... and zero out (for safety)
+	addl $4, -8(%ebp)
+	movl -8(%ebp), %eax
+	movl $0, (%eax)
 lbl_adjusted_:
-	movl -12(%ebp), %eax
+	movl -4(%ebp), %eax
 	movl c_getF_numLL, %ebx
         movl %ebx, (%eax)
-	movl -16(%ebp), %eax
+	movl -8(%ebp), %eax
 	addl $1, (%eax)
 	jmp lbl_foundall_
 	
@@ -110,19 +114,22 @@ lbl_ctue_:
 	jne lbl_lincr_
 
 	movl prime_Arr(, %ecx, 4), %edi
-	movl -12(%ebp), %eax
+	movl -4(%ebp), %eax
 	movl (%eax), %eax
 	cmp %eax, %edi
-	je lbl_notNew_   # not a new factor
+	je lbl_notNew_     # not a new factor
 	cmp $0, %eax
-	je lbl_notNew_   # not the first factor found
-	addl $4, -12(%ebp)
-	addl $4, -16(%ebp)
-#	addl $1, %esi
+	je lbl_notNew_     # not the first factor found
+	addl $4, -4(%ebp)  # increment...
+	movl -4(%ebp), %eax
+	movl $0, (%eax)    # ...and zero out
+	addl $4, -8(%ebp)
+	movl -8(%ebp), %eax
+	movl $0, (%eax)
 lbl_notNew_:
-	movl -12(%ebp), %eax
+	movl -4(%ebp), %eax
 	movl %edi, (%eax)	# add next factor
-	movl -16(%ebp), %eax
+	movl -8(%ebp), %eax
 	addl $1, (%eax)		# and increase its multiplicity
 	call foundAll
 	cmp $1, %edi
@@ -133,16 +140,15 @@ lbl_lincr_:
 	incl %ecx
 	jmp loop_A_
 
-	# add a sentinel
-	addl $4, -12(%ebp)
-	addl $4, -16(%ebp)
-	movl -12(%ebp), %eax
-	movl $0, (%eax)
-	movl -16(%ebp), %eax
-	movl $0, (%eax)	
-	
 lbl_foundall_:
-	
+	# add a sentinel
+	addl $4, -4(%ebp)
+	addl $4, -8(%ebp)
+	movl -4(%ebp), %eax
+	movl $0, (%eax)
+	movl -8(%ebp), %eax
+	movl $0, (%eax)	
+		
 	popl %esi
 	popl %edi
 	popl %ebx
@@ -204,7 +210,7 @@ foundAll:
 	pushl %ebp
 	movl %esp, %ebp
 
-	cmp $1, c_getF_numLL
+	cmpl $1, c_getF_numLL
 	jne lbl_fa_not_
 	cmp $0, c_getF_numLL + 4
 	jne lbl_fa_not_
