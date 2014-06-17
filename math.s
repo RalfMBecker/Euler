@@ -15,13 +15,15 @@
 modulo:
 	pushl %ebp
 	movl %esp, %ebp
+	pushl %edx
 	
-#	xor %edx, %edx     # would work only for unsigned integers
+	xor %edx, %edx     # would work only for unsigned integers
 	movl 8(%ebp), %eax # dividend
-	cdq                # sign-extend 32b value in %eax to %edx:%eax
-	idivl 12(%ebp)
+#	cdq                # sign-extend 32b value in %eax to %edx:%eax
+	divl 12(%ebp)
 	movl %edx, %eax    # move remainder
 
+	popl %edx
 	movl %ebp, %esp
 	popl %ebp
 	ret
@@ -29,7 +31,7 @@ modulo:
 
 # max(a, b)
 # assumes integer values for a and b
-# Calling and return convention
+# C calling and return convention
 	.section .text
 	.globl max
 	.type max, @function
@@ -50,7 +52,7 @@ lbl_maxe_:
 
 # min(a, b)
 # assumes integer values for a and b
-# Calling and return convention
+# C calling and return convention
 	.section .text
 	.globl min
 	.type min, @function
@@ -73,6 +75,10 @@ lbl_mine_:
 # Euclid's Algorithm:
 # if (min(a,b) == 0) return max(a,b) (fine also both 0 as gcd(0,0) = 0)
 # else return gcd(min(a,b), max(a,b) % min(a,b)
+#
+# Assumes both unsigned integers are dword-sized
+#
+# Registers: only uses %eax	
 	.section .text
 	.globl gcd
 	.type gcd, @function
@@ -93,20 +99,20 @@ gcd:
 	movl %eax, -8(%ebp)  # holds min
 	
 	# check for termination
-	cmpl $0, -8(%ebp)
+	cmp $0, -8(%ebp)
 	jne lbl_gcdrec_
 	movl -4(%ebp), %eax
 	jmp lbl_gcdexit_
 
 	#recurse
 lbl_gcdrec_:
-	pushl -8(%esp)	# modulo
-	pushl -4(%esp)
+	pushl -8(%ebp)	# modulo
+	pushl -4(%ebp)
 	call modulo
 	addl $8, %esp
-	
+
 	pushl %eax
-	pushl -8(%esp)
+	pushl -8(%ebp)
 	call gcd	# %eax of deepest recursion level handed
 	addl $8, %esp   # on through the unrolling iterations
 	
@@ -115,7 +121,111 @@ lbl_gcdexit_:
 	popl %ebp
 	ret
 # end gcd(a, b)
+
+# lcm(a, b) = a * b / gcd(a,b)
+# C calling conventions
+#
+# Assumes both unsigned integers are dword-sized, as well as lcm(a, b)
+#
+# Error: if overflow, returns -1	
+	.section .text
+	.globl lcm
+	.type lcm, @function
+lcm:
+	pushl %ebp
+	movl %esp, %ebp
+	pushl %ebx
+	pushl %edx
+
+	# get gcd(a, b) first -> %ebx
+	pushl 12(%ebp)
+	pushl 8(%ebp)
+	call gcd
+	addl $8, %esp
+	movl %eax, %ebx
+
+	# a*b -> keep in (%edx, %eax)
+	xor %edx, %edx
+	movl 12(%ebp), %eax
+	mull 8(%ebp)
+
+	# finalize as a*b/gcd(a,b)
+	divl %ebx
+	cmp $0, %edx    # check for overflow. If not, %eax has the result
+	je lbl_lcmexit_
+	movl $-1, %eax
+
+lbl_lcmexit_:
+	popl %edx
+	popl %ebx
+	movl %ebp, %esp
+	popl %ebp
+	ret
+# end lcm(a, b)
+
+# lcmA(a_1, ..., a_n, 0) = lcm(a_1, lcm(a_2, lcm(.....a_n)))
+# C calling conventions (0-terminated array of integers - pointer)
+#
+# Assumes all unsigned integers are dword-sized, as well as lcmA(a_1, ..., a_n)
+#
+# Error: if overflow, returns -1
+#
+# Registers: %ebx - lcm(a_1, ..., a_k)
+#            %ecx - a_k
+#
+# Note: to extend the range...order array, and lcm successively min and max	
+	.section .text
+	.globl lcmA
+	.type lcmA, @function
+lcmA:
+	pushl %ebp
+	movl %esp, %ebp
+	pushl %ebx
+	pushl %ecx
 	
+test:	
+	# get first two
+	movl 8(%ebp), %ebx   # base address of int array
+	cmp $0, (%ebx)
+	je lbl_lcmA_err_
+	movl %ebx, %ecx
+	addl $4, %ecx
+	cmp $0, (%ecx)
+	je lbl_lcmA_err_
+	pushl (%ebx)
+	pushl (%ecx)
+	call lcm
+	addl $8, %esp
+	# error check
+	cmp $-1, %eax
+	je lbl_lcmA_err_
+	# if not, store
+	movl %eax, %ebx
+	
+	# iterate
+loop_lcmA_:	
+	addl $4, %ecx
+	cmp $0, (%ecx)
+	je lbl_lcmA_exit_
+	pushl %ebx	# called routines preserve registers
+	pushl (%ecx)
+	call lcm
+	addl $8, %esp
+	cmp $-1, %eax
+	je lbl_lcmA_err_
+	movl %eax, %ebx
+	jmp loop_lcmA_
+
+lbl_lcmA_err_:
+	movl $-1, %eax
+lbl_lcmA_exit_:
+	popl %ecx
+	popl %ebx
+	movl %ebp, %esp
+	popl %ebp
+	ret
+# end lcmA(a_1, ..., a_n, 0)
+
 # fibonacci
 # C calling convention, with non-negative integer on top of stack
 # Calculation: f(0) = 0
@@ -208,7 +318,7 @@ sieve:
 	movl 8(%ebp), %edx
 	pushl %esi
 	pushl %ebx
-	
+
 	# create Eratosthenes tmp array
 	movl $0, %ecx
 loop_sieve_Tmp_:	

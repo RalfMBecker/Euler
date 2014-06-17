@@ -49,7 +49,7 @@ getFactors:
 
 	# get a bound to which prime to check
 	call getSrBound
-test:	
+
 	# generate relevant primes
 	pushl c_getF_highestV
 	call sieve
